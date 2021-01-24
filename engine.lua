@@ -20,8 +20,16 @@ local check_light = minetest.is_yes(minetest.settings:get_bool('light_roofcheck'
 --Helper Functions
 
 local function player_inside_climate(player_pos)
+	--check altitude
 	if (player_pos.y < climatez.settings.climate_min_height) or (player_pos.y > climate_max_height) then
 		return false
+	end
+	--check if on water
+	local node_name = minetest.get_node(player_pos).name
+	if minetest.registered_nodes[node_name] and (
+		minetest.registered_nodes[node_name]["liquidtype"] == "source" or
+		minetest.registered_nodes[node_name]["liquidtype"] == "flowing") then
+			return false
 	end
 	--If sphere's centre coordinates is (cx,cy,cz) and its radius is r,
 	--then point (x,y,z) is in the sphere if (x−cx)2+(y−cy)2+(z−cz)2<r2.
