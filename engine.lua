@@ -6,7 +6,7 @@ climatez.settings = {}
 
 --Settings
 
-local settings = Settings(modpath .. "/climatez.conf")
+local settings = Settings(modpath .. "/settingtypes.txt")
 
 climatez.settings.climate_min_height = tonumber(settings:get("climate_min_height"))
 climatez.settings.climate_change_ratio = tonumber(settings:get("climate_change_ratio"))
