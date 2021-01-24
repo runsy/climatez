@@ -8,16 +8,21 @@ climatez.settings = {}
 
 local settings = Settings(modpath .. "/climatez.conf")
 
+climatez.settings.climate_min_height = tonumber(settings:get("climate_min_height"))
 climatez.settings.climate_change_ratio = tonumber(settings:get("climate_change_ratio"))
 climatez.settings.radius = tonumber(settings:get("climate_radius"))
 climatez.settings.climate_duration = tonumber(settings:get("climate_duration"))
 climatez.settings.duration_random_ratio = tonumber(settings:get("climate_duration_random_ratio"))
 
+local climate_max_height = tonumber(minetest.settings:get('cloud_height', true)) or 120
 local check_light = minetest.is_yes(minetest.settings:get_bool('light_roofcheck', true))
 
 --Helper Functions
 
 local function player_inside_climate(player_pos)
+	if (player_pos.y < climatez.settings.climate_min_height) or (player_pos.y > climate_max_height) then
+		return false
+	end
 	--If sphere's centre coordinates is (cx,cy,cz) and its radius is r,
 	--then point (x,y,z) is in the sphere if (x−cx)2+(y−cy)2+(z−cz)2<r2.
 	for i, climate in ipairs(climatez.climates) do
@@ -107,9 +112,9 @@ register_downfall("sand", {
 
 local function create_wind()
 	local wind = {
-		x = math.random(0,10),
+		x = math.random(0,5),
 		y = 0,
-		z = math.random(0,10)
+		z = math.random(0,5)
 	}
 	return wind
 end
