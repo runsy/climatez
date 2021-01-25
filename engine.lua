@@ -152,6 +152,7 @@ local function add_climate_player(player, _climate_id, _downfall)
 	if climatez.settings.climate_rain_sound and _downfall == "rain" then
 		rain_sound = minetest.sound_play("climatez_rain", {
 			to_player = player_name,
+			loop = true,
 			gain = 1.0,
 		})
 	end
