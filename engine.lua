@@ -250,7 +250,7 @@ minetest.register_globalstep(function(dtime)
 			local _climate_id = climatez.players[_player_name]
 			if  climate_id and _climate_id then --if already in a climate, check if still inside it
 				if not climate_id == _climate_id then
-					climatez.players[_player_name] = nil
+					remove_climate_player(player)
 				end
 			elseif climate_id and not(_climate_id) then --another player enter into the climate
 				--minetest.chat_send_all(_player_name.." enter into the climate")
@@ -271,7 +271,7 @@ minetest.register_globalstep(function(dtime)
 		if player then
 			apply_climate(player, _climate_id)
 		else
-			climatez.players[_player_name] = nil
+			remove_climate_player(player)
 		end
 	end
 end)
