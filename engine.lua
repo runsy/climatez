@@ -271,7 +271,7 @@ minetest.register_globalstep(function(dtime)
 		if player then
 			apply_climate(player, _climate_id)
 		else
-			remove_climate_player(player)
+			climatez.players[_player_name] = nil
 		end
 	end
 end)
