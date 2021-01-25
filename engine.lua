@@ -141,7 +141,7 @@ end
 
 --CLIMATE FUNCTIONS
 
-local rain_sound
+local rain_sound --handle for the rain sound
 
 local function add_climate_player(player, _climate_id, _downfall)
 	local player_name = player:get_player_name()
