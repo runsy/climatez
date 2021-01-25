@@ -253,13 +253,13 @@ minetest.register_globalstep(function(dtime)
 					remove_climate_player(player)
 				end
 			elseif climate_id and not(_climate_id) then --another player enter into the climate
-				--minetest.chat_send_all(_player_name.." enter into the climate")
 				add_climate_player(player, climate_id)
+				--minetest.chat_send_all(_player_name.." entered into the climate")
 			else --chance to create a climate
 				local chance = math.random(climatez.settings.climate_change_ratio)
 				if chance == 1 then
-					--minetest.chat_send_all(_player_name.." create climate")
 					create_climate(player)
+					--minetest.chat_send_all(_player_name.." created a climate")
 				end
 			end
 		end
@@ -271,8 +271,8 @@ minetest.register_globalstep(function(dtime)
 		if player then
 			apply_climate(player, _climate_id)
 		else
-			--Do not use "remove_climate_player" here, bacause the player could
-			--be abandon the game
+			--Do not use "remove_climate_player" here, because the player could
+			--had abandoned the game
 			climatez.players[_player_name] = nil
 		end
 	end
