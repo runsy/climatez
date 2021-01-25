@@ -14,6 +14,7 @@ climatez.settings.climate_change_ratio = tonumber(settings:get("climate_change_r
 climatez.settings.radius = tonumber(settings:get("climate_radius"))
 climatez.settings.climate_duration = tonumber(settings:get("climate_duration"))
 climatez.settings.duration_random_ratio = tonumber(settings:get("climate_duration_random_ratio"))
+climatez.settings.climate_rain_sound = settings:get_bool("climate_rain_sound")
 
 local climate_max_height = tonumber(minetest.settings:get('cloud_height', true)) or 120
 local check_light = minetest.is_yes(minetest.settings:get_bool('light_roofcheck', true))
@@ -140,13 +141,28 @@ end
 
 --CLIMATE FUNCTIONS
 
-local function add_climate_player(player, climate_id)
+local rain_sound
+
+local function add_climate_player(player, _climate_id, _downfall)
 	local player_name = player:get_player_name()
-	climatez.players[player_name] = climate_id
+	climatez.players[player_name] = {
+		climate_id = _climate_id,
+		downfall = _downfall,
+	}
+	if climatez.settings.climate_rain_sound and _downfall == "rain" then
+		rain_sound = minetest.sound_play("climatez_rain", {
+			to_player = player_name,
+			gain = 1.0,
+		})
+	end
 end
 
 local function remove_climate_player(player)
 	local player_name = player:get_player_name()
+	local downfall = climatez.players[player_name].downfall
+	if climatez.settings.climate_rain_sound and downfall == "rain" then
+		minetest.sound_stop(rain_sound)
+	end
 	climatez.players[player_name] = nil
 end
 
@@ -183,7 +199,7 @@ local function create_climate(player)
 	}
 
 	--save the player
-	add_climate_player(player, climate_id)
+	add_climate_player(player, climate_id, downfall)
 
 	--program climate's end
 	local climate_duration = climatez.settings.climate_duration
@@ -192,7 +208,8 @@ local function create_climate(player)
 		climate_duration+ (climate_duration*climate_duration_random_ratio)))
 	minetest.after(random_end_time, function()
 		--remove the player
-		for _player_name, _climate_id in pairs(climatez.players) do
+		for _player_name, _climate in pairs(climatez.players) do
+			local _climate_id = _climate.climate_id
 			if _climate_id == climate_id then
 				local _player = minetest.get_player_by_name(_player_name)
 				if _player then
@@ -247,13 +264,15 @@ minetest.register_globalstep(function(dtime)
 			local _player_name = player:get_player_name()
 			local player_pos = player:get_pos()
 			local climate_id = player_inside_climate(player_pos)
-			local _climate_id = climatez.players[_player_name]
-			if  climate_id and _climate_id then --if already in a climate, check if still inside it
+			local _climate= climatez.players[_player_name]
+			if  climate_id and _climate then --if already in a climate, check if still inside it
+				local _climate_id = _climate.climate_id
 				if not climate_id == _climate_id then
 					remove_climate_player(player)
 				end
-			elseif climate_id and not(_climate_id) then --another player enter into the climate
-				add_climate_player(player, climate_id)
+			elseif climate_id and not(_climate) then --another player enter into the climate
+				local downfall =climatez.players[_player_name].downfall
+				add_climate_player(player, climate_id, downfall)
 				--minetest.chat_send_all(_player_name.." entered into the climate")
 			else --chance to create a climate
 				local chance = math.random(climatez.settings.climate_change_ratio)
@@ -266,7 +285,8 @@ minetest.register_globalstep(function(dtime)
 		timer = 0
 	end
 	--Apply the climates to the players with climate defined
-	for _player_name, _climate_id in pairs(climatez.players) do
+	for _player_name, _climate in pairs(climatez.players) do
+		local _climate_id = _climate.climate_id
 		local player = minetest.get_player_by_name(_player_name)
 		if player then
 			apply_climate(player, _climate_id)
