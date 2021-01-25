@@ -140,6 +140,16 @@ end
 
 --CLIMATE FUNCTIONS
 
+local function add_climate_player(player, climate_id)
+	local player_name = player:get_player_name()
+	climatez.players[player_name] = climate_id
+end
+
+local function remove_climate_player(player)
+	local player_name = player:get_player_name()
+	climatez.players[player_name] = nil
+end
+
 local function create_climate(player)
 	--get some data
 	local player_pos = player:get_pos()
@@ -173,8 +183,7 @@ local function create_climate(player)
 	}
 
 	--save the player
-	local player_name = player:get_player_name()
-	climatez.players[player_name] = climate_id
+	add_climate_player(player, climate_id)
 
 	--program climate's end
 	local climate_duration = climatez.settings.climate_duration
@@ -185,7 +194,10 @@ local function create_climate(player)
 		--remove the player
 		for _player_name, _climate_id in pairs(climatez.players) do
 			if _climate_id == climate_id then
-				climatez.players[_player_name] = nil
+				local _player = minetest.get_player_by_name(_player_name)
+				if _player then
+					remove_climate_player(_player)
+				end
 			end
 		end
 		--remove the climate
@@ -242,7 +254,7 @@ minetest.register_globalstep(function(dtime)
 				end
 			elseif climate_id and not(_climate_id) then --another player enter into the climate
 				--minetest.chat_send_all(_player_name.." enter into the climate")
-				climatez.players[_player_name] = climate_id
+				add_climate_player(player, climate_id)
 			else --chance to create a climate
 				local chance = math.random(climatez.settings.climate_change_ratio)
 				if chance == 1 then
@@ -253,6 +265,7 @@ minetest.register_globalstep(function(dtime)
 		end
 		timer = 0
 	end
+	--Apply the climates to the players with climate defined
 	for _player_name, _climate_id in pairs(climatez.players) do
 		local player = minetest.get_player_by_name(_player_name)
 		if player then
