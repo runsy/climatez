@@ -160,7 +160,7 @@ end
 local function remove_climate_player(player)
 	local player_name = player:get_player_name()
 	local downfall = climatez.players[player_name].downfall
-	if climatez.settings.climate_rain_sound and downfall == "rain" then
+	if rain_sound and climatez.settings.climate_rain_sound and downfall == "rain" then
 		minetest.sound_stop(rain_sound)
 	end
 	climatez.players[player_name] = nil
