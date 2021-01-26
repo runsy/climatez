@@ -176,11 +176,11 @@ local function create_climate(player)
 
 	local downfall
 
-	if biome_heat > 40 and biome_humidity > 50 then
+	if biome_heat >= 20 and biome_humidity >= 50 then
 		downfall = "rain"
-	elseif biome_heat > 50 and biome_humidity < 20  then
+	elseif biome_heat >= 50 and biome_humidity <= 20  then
 		downfall = "sand"
-	else
+	elseif biome_heat < 20 then
 		downfall = "snow"
 	end
 
@@ -215,6 +215,7 @@ local function create_climate(player)
 				local _player = minetest.get_player_by_name(_player_name)
 				if _player then
 					remove_climate_player(_player)
+					--minetest.chat_send_all(_player_name.." removed from climate")
 				end
 			end
 		end
@@ -228,10 +229,11 @@ local function apply_climate(player, climate_id)
 	local player_pos = player:get_pos()
 	local climate = climatez.climates[climate_id]
 	if not climate then
+		remove_climate_player(player)
 		return
 	end
 	local downfall = climatez.registered_downfalls[climate.downfall]
-	local wind = climatez.climates[climate_id].wind
+	local wind = climate.wind
 	local wind_pos = vector.multiply(wind, -1)
 	local minp = vector.add(vector.add(player_pos, downfall.min_pos), wind_pos)
 	local maxp = vector.add(vector.add(player_pos, downfall.max_pos), wind_pos)
@@ -263,13 +265,13 @@ end
 local timer = 0
 minetest.register_globalstep(function(dtime)
 	timer = timer + dtime;
-	if timer >= 1 then
+	if timer >= 0.5 then
 		for _, player in ipairs(minetest.get_connected_players()) do
 			local _player_name = player:get_player_name()
 			local player_pos = player:get_pos()
 			local climate_id = player_inside_climate(player_pos)
 			local _climate= climatez.players[_player_name]
-			if  climate_id and _climate then --if already in a climate, check if still inside it
+			if climate_id and _climate then --if already in a climate, check if still inside it
 				local _climate_id = _climate.climate_id
 				if not climate_id == _climate_id then
 					remove_climate_player(player)
