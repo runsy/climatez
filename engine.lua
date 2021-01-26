@@ -227,6 +227,9 @@ local function apply_climate(player, climate_id)
 
 	local player_pos = player:get_pos()
 	local climate = climatez.climates[climate_id]
+	if not climate then
+		return
+	end
 	local downfall = climatez.registered_downfalls[climate.downfall]
 	local wind = climatez.climates[climate_id].wind
 	local wind_pos = vector.multiply(wind, -1)
