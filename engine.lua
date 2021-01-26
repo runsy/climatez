@@ -232,7 +232,9 @@ local function apply_climate(player, climate_id)
 		remove_climate_player(player)
 		return
 	end
-	local downfall = climatez.registered_downfalls[climate.downfall]
+	local player_name = player:get_player_name()
+	local player_downfall = climatez.players[player_name].downfall
+	local downfall = climatez.registered_downfalls[player_downfall]
 	local wind = climate.wind
 	local wind_pos = vector.multiply(wind, -1)
 	local minp = vector.add(vector.add(player_pos, downfall.min_pos), wind_pos)
