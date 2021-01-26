@@ -15,6 +15,7 @@ climatez.settings.radius = tonumber(settings:get("climate_radius"))
 climatez.settings.climate_duration = tonumber(settings:get("climate_duration"))
 climatez.settings.duration_random_ratio = tonumber(settings:get("climate_duration_random_ratio"))
 climatez.settings.climate_rain_sound = settings:get_bool("climate_rain_sound")
+climatez.settings.storm_chance= tonumber(settings:get("storm_chance"))
 
 local climate_max_height = tonumber(minetest.settings:get('cloud_height', true)) or 120
 local check_light = minetest.is_yes(minetest.settings:get_bool('light_roofcheck', true))
@@ -98,6 +99,16 @@ register_downfall("rain", {
 	texture = "climatez_rain.png",
 })
 
+register_downfall("storm", {
+	min_pos = {x = -15, y = 20, z = -15},
+	max_pos = {x = 15, y = 20, z = 15},
+	falling_speed = 20,
+	amount = 40,
+	exptime = 1,
+	size = 1,
+	texture = "climatez_rain.png",
+})
+
 register_downfall("snow", {
 	min_pos = {x = -15, y = 10, z= -15},
 	max_pos = {x = 15, y = 10, z = 15},
@@ -148,8 +159,20 @@ local function add_climate_player(player, _climate_id, _downfall)
 	climatez.players[player_name] = {
 		climate_id = _climate_id,
 		downfall = _downfall,
+		sky_color = nil,
 	}
-	if climatez.settings.climate_rain_sound and _downfall == "rain" then
+	if _downfall == "rain" or _downfall == "storm" then
+		local sky_color = player:get_sky().sky_color
+		if sky_color then
+			climatez.players[player_name].sky_color = sky_color
+		end
+		player:set_sky({
+			sky_color = {
+				day_sky = "#808080",
+			}
+		})
+	end
+	if climatez.settings.climate_rain_sound and (_downfall == "rain" or _downfall == "storm") then
 		rain_sound = minetest.sound_play("climatez_rain", {
 			to_player = player_name,
 			loop = true,
@@ -160,9 +183,21 @@ end
 
 local function remove_climate_player(player)
 	local player_name = player:get_player_name()
+	if climatez.players[player_name].sky_color then
+		player:set_sky({
+			sky_color = sky_color,
+		})
+	else
+		player:set_sky({
+			sky_color = {
+				day_sky = "#8cbafa",
+			}
+		})
+	end
 	local downfall = climatez.players[player_name].downfall
-	if rain_sound and climatez.settings.climate_rain_sound and downfall == "rain" then
-		minetest.sound_stop(rain_sound)
+	if rain_sound and climatez.settings.climate_rain_sound
+		and (downfall == "rain" or downfall == "storm") then
+			minetest.sound_stop(rain_sound)
 	end
 	climatez.players[player_name] = nil
 end
@@ -177,7 +212,12 @@ local function create_climate(player)
 	local downfall
 
 	if biome_heat >= 20 and biome_humidity >= 50 then
-		downfall = "rain"
+		local chance = math.random(climatez.settings.storm_chance)
+		if chance == 1 then
+			downfall = "storm"
+		else
+			downfall = "rain"
+		end
 	elseif biome_heat >= 50 and biome_humidity <= 20  then
 		downfall = "sand"
 	elseif biome_heat < 20 then
@@ -190,6 +230,15 @@ local function create_climate(player)
 
 	--create wind
 	local wind = create_wind()
+
+	--strong wind if a storm
+	if downfall == "storm" then
+		wind = {
+			x = wind.x * 2,
+			y = wind.y,
+			z = wind.z * 2,
+		}
+	end
 
 	--create climate
 	local climate_id = #climatez.climates+1
@@ -205,8 +254,8 @@ local function create_climate(player)
 	--program climate's end
 	local climate_duration = climatez.settings.climate_duration
 	local climate_duration_random_ratio = climatez.settings.duration_random_ratio
-	local random_end_time = (math.random(climate_duration- (climate_duration*climate_duration_random_ratio),
-		climate_duration+ (climate_duration*climate_duration_random_ratio)))
+	local random_end_time = (math.random(climate_duration - (climate_duration*climate_duration_random_ratio),
+		climate_duration + (climate_duration*climate_duration_random_ratio)))
 	minetest.after(random_end_time, function()
 		--remove the player
 		for _player_name, _climate in pairs(climatez.players) do
@@ -267,7 +316,7 @@ end
 local timer = 0
 minetest.register_globalstep(function(dtime)
 	timer = timer + dtime;
-	if timer >= 0.5 then
+	if timer >= 1 then
 		for _, player in ipairs(minetest.get_connected_players()) do
 			local _player_name = player:get_player_name()
 			local player_pos = player:get_pos()
