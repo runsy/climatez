@@ -217,7 +217,7 @@ local function remove_climate_player(player, climate_id)
 	local player_name = player:get_player_name()
 	if climatez.players[player_name].sky_color then
 		player:set_sky({
-			sky_color = sky_color,
+			sky_color = climatez.players[player_name].sky_color,
 		})
 	else
 		player:set_sky({
