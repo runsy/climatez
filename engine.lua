@@ -184,14 +184,13 @@ end
 
 --CLIMATE FUNCTIONS
 
-local rain_sound --handle for the rain sound
-
 local function add_climate_player(player, _climate_id, _downfall)
 	local player_name = player:get_player_name()
 	climatez.players[player_name] = {
 		climate_id = _climate_id,
 		downfall = _downfall,
 		sky_color = nil,
+		rain_sound_handle = nil,
 	}
 	if _downfall == "rain" or _downfall == "storm" then
 		local sky_color = player:get_sky().sky_color
@@ -205,11 +204,12 @@ local function add_climate_player(player, _climate_id, _downfall)
 		})
 	end
 	if climatez.settings.climate_rain_sound and (_downfall == "rain" or _downfall == "storm") then
-		rain_sound = minetest.sound_play("climatez_rain", {
+		local rain_sound_handle = minetest.sound_play("climatez_rain", {
 			to_player = player_name,
 			loop = true,
 			gain = 1.0,
 		})
+		climatez.players[player_name].rain_sound_handle = rain_sound_handle
 	end
 end
 
@@ -227,9 +227,10 @@ local function remove_climate_player(player, climate_id)
 		})
 	end
 	local downfall = climatez.players[player_name].downfall
-	if rain_sound and climatez.settings.climate_rain_sound
+	local rain_sound_handle = climatez.players[player_name].rain_sound_handle
+	if rain_sound_handle and climatez.settings.climate_rain_sound
 		and (downfall == "rain" or downfall == "storm") then
-			minetest.sound_stop(rain_sound)
+			minetest.sound_stop(rain_sound_handle)
 	end
 
 	local lightning = player:get_meta():get_int("climatez:lightning")
@@ -375,7 +376,7 @@ end
 --CLIMATE CORE: GLOBALSTEP
 
 minetest.register_globalstep(function(dtime)
-	timer = timer + dtime;
+	timer = timer + dtime
 	if timer >= 1 then
 		for _, player in ipairs(minetest.get_connected_players()) do
 			local _player_name = player:get_player_name()
