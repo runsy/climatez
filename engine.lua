@@ -175,7 +175,7 @@ local function show_lightning(player)
 	end
 end
 
-function remove_lightning(player)
+local function remove_lightning(player)
 	local meta = player:get_meta()
 	local hud_id = meta:get_int("climatez:lightning")
 	player:hud_remove(hud_id)
