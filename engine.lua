@@ -14,6 +14,7 @@ climatez.settings.climate_change_ratio = tonumber(settings:get("climate_change_r
 climatez.settings.radius = tonumber(settings:get("climate_radius"))
 climatez.settings.climate_duration = tonumber(settings:get("climate_duration"))
 climatez.settings.duration_random_ratio = tonumber(settings:get("climate_duration_random_ratio"))
+climatez.settings.climate_period = tonumber(settings:get("climate_period"))
 climatez.settings.climate_rain_sound = settings:get_bool("climate_rain_sound")
 climatez.settings.thunder_sound = settings:get_bool("thunder_sound")
 climatez.settings.storm_chance = tonumber(settings:get("storm_chance"))
@@ -26,16 +27,17 @@ local check_light = minetest.is_yes(minetest.settings:get_bool('light_roofcheck'
 --Helper Functions
 
 local function player_inside_climate(player_pos)
+	--This function returns the climate_id if inside and true/false if the climate is enabled dor not
 	--check altitude
 	if (player_pos.y < climatez.settings.climate_min_height) or (player_pos.y > climate_max_height) then
-		return false
+		return false, nil
 	end
 	--check if on water
 	local node_name = minetest.get_node(player_pos).name
 	if minetest.registered_nodes[node_name] and (
 		minetest.registered_nodes[node_name]["liquidtype"] == "source" or
 		minetest.registered_nodes[node_name]["liquidtype"] == "flowing") then
-			return false
+			return false, false
 	end
 	--If sphere's centre coordinates is (cx,cy,cz) and its radius is r,
 	--then point (x,y,z) is in the sphere if (x−cx)2+(y−cy)2+(z−cz)2<r2.
@@ -45,10 +47,14 @@ local function player_inside_climate(player_pos)
 			(player_pos.y - climate_center.y)^2 +
 			(player_pos.z - climate_center.z)^2
 			) then
-				return i
+				if climatez.climates[i].disabled then
+					return i, true
+				else
+					return i, false
+				end
 		end
 	end
-	return false
+	return false, false
 end
 
 local function has_light(minp, maxp)
@@ -213,7 +219,7 @@ local function add_climate_player(player, _climate_id, _downfall)
 	end
 end
 
-local function remove_climate_player(player, climate_id)
+local function remove_climate_player(player)
 	local player_name = player:get_player_name()
 	if climatez.players[player_name].sky_color then
 		player:set_sky({
@@ -238,7 +244,9 @@ local function remove_climate_player(player, climate_id)
 		remove_lightning(player)
 	end
 
-	climatez.players[player_name] = nil
+	--remove the player-->
+	array_remove(climatez.players, player_name)
+	--climatez.players[player_name] = nil
 end
 
 local function create_climate(player)
@@ -282,6 +290,7 @@ local function create_climate(player)
 	--create climate
 	local climate_id = #climatez.climates+1
 	climatez.climates[climate_id] = {
+		disabled = false,
 		center = player_pos,
 		downfall = downfall,
 		wind = wind,
@@ -308,8 +317,13 @@ local function create_climate(player)
 				end
 			end
 		end
-		--remove the climate
-		climatez.climates = array_remove(climatez.climates, climate_id)
+		--disable the climate
+		climatez.climates[climate_id].disabled = true
+		--remove the climate after the period time
+		minetest.after(climatez.settings.climate_period, function()
+			--minetest.chat_send_all("end of the climate")
+			climatez.climates = array_remove(climatez.climates, climate_id)
+		end)
 	end)
 end
 
@@ -381,22 +395,24 @@ minetest.register_globalstep(function(dtime)
 		for _, player in ipairs(minetest.get_connected_players()) do
 			local _player_name = player:get_player_name()
 			local player_pos = player:get_pos()
-			local climate_id = player_inside_climate(player_pos)
+			local climate_id, climate_disabled = player_inside_climate(player_pos)
 			local _climate = climatez.players[_player_name]
 			if climate_id and _climate then --if already in a climate, check if still inside it
 				local _climate_id = _climate.climate_id
 				if not climate_id == _climate_id then
 					remove_climate_player(player)
 				end
-			elseif climate_id and not(_climate) then --another player enter into the climate
+			elseif climate_id and not(_climate) and not climate_disabled then --another player enter into the climate
 				local downfall = climatez.climates[climate_id].downfall
 				add_climate_player(player, climate_id, downfall)
 				--minetest.chat_send_all(_player_name.." entered into the climate")
 			else --chance to create a climate
-				local chance = math.random(climatez.settings.climate_change_ratio)
-				if chance == 1 then
-					create_climate(player)
-					--minetest.chat_send_all(_player_name.." created a climate")
+				if not climate_disabled then
+					local chance = math.random(climatez.settings.climate_change_ratio)
+					if chance == 1 then
+						create_climate(player)
+						--minetest.chat_send_all(_player_name.." created a climate")
+					end
 				end
 			end
 		end
@@ -404,14 +420,15 @@ minetest.register_globalstep(function(dtime)
 	end
 	--Apply the climates to the players with climate defined
 	for _player_name, _climate in pairs(climatez.players) do
-		local _climate_id = _climate.climate_id
 		local player = minetest.get_player_by_name(_player_name)
-		if player then
+		if player and _climate then
+			local _climate_id = _climate.climate_id
 			apply_climate(player, _climate_id)
 		else
 			--Do not use "remove_climate_player" here, because the player could
 			--had abandoned the game
-			climatez.players[_player_name] = nil
+			array_remove(climatez.players, _player_name)
+			--minetest.chat_send_all(_player_name.." test")
 		end
 	end
 end)
