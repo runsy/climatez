@@ -290,6 +290,8 @@ local function create_climate(player)
 	--create climate
 	local climate_id = #climatez.climates+1
 	climatez.climates[climate_id] = {
+		--A disabled climate is a not removed climate,
+		--but inactive, so another climate changes are not allowed yet.
 		disabled = false,
 		center = player_pos,
 		downfall = downfall,
@@ -317,9 +319,9 @@ local function create_climate(player)
 				end
 			end
 		end
-		--disable the climate
+		--disable the climate, but do not remove it
 		climatez.climates[climate_id].disabled = true
-		--remove the climate after the period time
+		--remove the climate after the period time:
 		minetest.after(climatez.settings.climate_period, function()
 			--minetest.chat_send_all("end of the climate")
 			climatez.climates = array_remove(climatez.climates, climate_id)
@@ -407,7 +409,7 @@ minetest.register_globalstep(function(dtime)
 				add_climate_player(player, climate_id, downfall)
 				--minetest.chat_send_all(_player_name.." entered into the climate")
 			else --chance to create a climate
-				if not climate_disabled then
+				if not climate_disabled then --if not in a disabled climate
 					local chance = math.random(climatez.settings.climate_change_ratio)
 					if chance == 1 then
 						create_climate(player)
