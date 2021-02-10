@@ -132,9 +132,9 @@ register_downfall("sand", {
 	min_pos = {x = -20, y = -4, z = -20},
 	max_pos = {x = 20, y = 4, z = 20},
 	falling_speed = -1,
-	amount = 40,
+	amount = 25,
 	exptime = 1,
-	size = 1,
+	size = 4,
 	texture = "climatez_sand.png",
 })
 
@@ -196,19 +196,34 @@ local function add_climate_player(player, _climate_id, _downfall)
 		climate_id = _climate_id,
 		downfall = _downfall,
 		sky_color = nil,
+		clouds_color = nil,
 		rain_sound_handle = nil,
 	}
+	local sky_color = player:get_sky().sky_color
+	local downfall_sky_color, downfall_clouds_color
 	if _downfall == "rain" or _downfall == "storm" then
-		local sky_color = player:get_sky().sky_color
-		if sky_color then
-			climatez.players[player_name].sky_color = sky_color
-		end
-		player:set_sky({
-			sky_color = {
-				day_sky = "#808080",
-			}
-		})
+		downfall_sky_color = "#808080"
+		downfall_clouds_color = "#C0C0C0"
+	else --"sand"
+		downfall_sky_color = "#DEB887"
+		downfall_clouds_color = "#DEB887"
 	end
+	if sky_color then
+		climatez.players[player_name].sky_color = sky_color
+	end
+	player:set_sky({
+		sky_color = {
+			day_sky = downfall_sky_color,
+		}
+	})
+	local clouds_color = player:get_clouds().color
+	if clouds_color then
+		climatez.players[player_name].clouds_color = clouds_color
+	end
+	player:set_clouds({
+		color = downfall_clouds_color,
+	})
+
 	if climatez.settings.climate_rain_sound and (_downfall == "rain" or _downfall == "storm") then
 		local rain_sound_handle = minetest.sound_play("climatez_rain", {
 			to_player = player_name,
@@ -230,6 +245,15 @@ local function remove_climate_player(player)
 			sky_color = {
 				day_sky = "#8cbafa",
 			}
+		})
+	end
+	if climatez.players[player_name].clouds_color then
+		player:set_clouds({
+			color = climatez.players[player_name].clouds_color,
+		})
+	else
+		player:set_clouds({
+			color = "#fff0f0e5",
 		})
 	end
 	local downfall = climatez.players[player_name].downfall
@@ -284,6 +308,19 @@ local function create_climate(player)
 			x = wind.x * 2,
 			y = wind.y,
 			z = wind.z * 2,
+		}
+	end
+
+	--very strong wind if a sandstorm
+	if downfall == "sand" then
+		if wind.x < 1 then
+			wind.x = 1
+			wind.y = 1
+		end
+		wind = {
+			x = wind.x * 5,
+			y = wind.y,
+			z = wind.z * 5,
 		}
 	end
 
