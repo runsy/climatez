@@ -270,7 +270,6 @@ local function remove_climate_player(player)
 
 	--remove the player-->
 	array_remove(climatez.players, player_name)
-	--climatez.players[player_name] = nil
 end
 
 local function create_climate(player)
@@ -333,7 +332,6 @@ local function create_climate(player)
 		center = player_pos,
 		downfall = downfall,
 		wind = wind,
-		lightning = false,
 	}
 
 	--save the player
@@ -407,21 +405,19 @@ local function apply_climate(player, climate_id)
 
 	--Lightning
 	if player_downfall == "storm" and climatez.settings.lightning then
-		local lightning = climatez.climates[climate_id].lightning
+		local lightning = player:get_meta():get_int("climatez:lightning")
 		--minetest.chat_send_all(tostring(lightning))
 		--minetest.chat_send_all(tonumber(timer))
 		if timer >= 0.5 then
-			if not lightning then
+			if lightning <= 0  then
 				local chance = math.random(climatez.settings.lightning_chance)
 				if chance == 1 then
 					show_lightning(player, climate_id)
-					climatez.climates[climate_id].lightning = true
 				end
 			end
 		end
-		if timer >= 0.1 and lightning then
+		if timer >= 0.1 and lightning > 0 then
 			remove_lightning(player)
-			climatez.climates[climate_id].lightning = false
 		end
 	end
 end
