@@ -343,7 +343,7 @@ local function create_climate(player)
 	local climate_duration_random_ratio = climatez.settings.duration_random_ratio
 	local random_end_time = (math.random(climate_duration - (climate_duration*climate_duration_random_ratio),
 		climate_duration + (climate_duration*climate_duration_random_ratio)))
-	minetest.after(random_end_time, function(climate_id)
+	minetest.after(random_end_time, function()
 		--remove the player
 		for _player_name, _climate in pairs(climatez.players) do
 			local _climate_id = _climate.climate_id
@@ -361,7 +361,7 @@ local function create_climate(player)
 		--disable the climate, but do not remove it
 		climatez.climates[climate_id].disabled = true
 		--remove the climate after the period time:
-		minetest.after(climatez.settings.climate_period, function(climate_id)
+		minetest.after(climatez.settings.climate_period, function()
 			--minetest.chat_send_all("end of the climate")
 			climatez.climates = array_remove(climatez.climates, climate_id)
 		end, climate_id)
