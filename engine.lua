@@ -325,7 +325,7 @@ local function remove_climate(climate_id)
 	minetest.after(climatez.settings.climate_period, function()
 		--minetest.chat_send_all("end of the climate")
 		climatez.climates = remove_table_by_key(climatez.climates, climate_id)
-		minetest.chat_send_all("Removed climate, id="..tostring(climate_id))
+		--minetest.chat_send_all("Removed climate, id="..tostring(climate_id))
 	end, climate_id)
 end
 
@@ -404,7 +404,7 @@ local function create_climate(player)
 	--remove the climate
 	minetest.after(random_end_time, remove_climate, climate_id)
 
-	minetest.chat_send_all("Created a climate, id="..tostring(climate_id))
+	--minetest.chat_send_all("Created a climate, id="..tostring(climate_id))
 end
 
 local timer = 0
