@@ -26,6 +26,33 @@ local check_light = minetest.is_yes(minetest.settings:get_bool('light_roofcheck'
 
 --Helper Functions
 
+function remove_table_by_key(tab, key)
+	local i = 0
+	local keys, values = {},{}
+	for k, v in pairs(tab) do
+		i = i + 1
+		keys[i] = k
+		values[i] = v
+	end
+
+	while i > 0 do
+		if keys[i] == key then
+			table.remove(keys, i)
+			table.remove(values, i)
+			break
+		end
+		i = i - 1
+	end
+
+	local new_tab = {}
+
+	for i = 1, #keys do
+		new_tab[keys[i]] = values[i]
+	end
+
+	return new_tab
+end
+
 local function player_inside_climate(player_pos)
 	--This function returns the climate_id if inside and true/false if the climate is enabled dor not
 	--check altitude
@@ -78,15 +105,6 @@ local function has_light(minp, maxp)
 	end
 
 	return light
-end
-
-local function array_remove(tab, idx)
-	tab[idx] = nil
-	local new_tab = {}
-	for _, value in pairs(tab) do
-		new_tab[ #new_tab+1] = value
-	end
-	return new_tab
 end
 
 --DOWNFALLS REGISTRATIONS
@@ -191,6 +209,22 @@ end
 
 --CLIMATE FUNCTIONS
 
+local function get_id()
+	local id
+	--search for a free position
+	for i= 1, #climatez.climates do
+		if not climatez.climates[i] then
+			id = i
+			break
+		end
+	end
+	--if no site, add to the end
+	if not id then
+		id = #climatez.climates + 1
+	end
+	return id
+end
+
 local function add_climate_player(player, _climate_id, _downfall)
 	local player_name = player:get_player_name()
 	climatez.players[player_name] = {
@@ -270,7 +304,29 @@ local function remove_climate_player(player)
 	end
 
 	--remove the player-->
-	array_remove(climatez.players, player_name)
+	climatez.players = remove_table_by_key(climatez.players, player_name)
+end
+
+local function remove_climate(climate_id)
+	--remove the players
+	for _player_name, _climate in pairs(climatez.players) do
+		local _climate_id = _climate.climate_id
+		if _climate_id == climate_id then
+			local _player = minetest.get_player_by_name(_player_name)
+			if _player then
+				remove_climate_player(_player)
+				--minetest.chat_send_all(_player_name.." removed from climate")
+			end
+		end
+	end
+	--disable the climate, but do not remove it
+	climatez.climates[climate_id].disabled = true
+	--remove the climate after the period time:
+	minetest.after(climatez.settings.climate_period, function()
+		--minetest.chat_send_all("end of the climate")
+		climatez.climates = remove_table_by_key(climatez.climates, climate_id)
+		minetest.chat_send_all("Removed climate, id="..tostring(climate_id))
+	end, climate_id)
 end
 
 local function create_climate(player)
@@ -325,7 +381,8 @@ local function create_climate(player)
 	end
 
 	--create climate
-	local climate_id = #climatez.climates+1
+	local climate_id = get_id()
+	--minetest.chat_send_all(tostring(climate_id))
 	climatez.climates[climate_id] = {
 		--A disabled climate is a not removed climate,
 		--but inactive, so another climate changes are not allowed yet.
@@ -343,26 +400,11 @@ local function create_climate(player)
 	local climate_duration_random_ratio = climatez.settings.duration_random_ratio
 	local random_end_time = (math.random(climate_duration - (climate_duration*climate_duration_random_ratio),
 		climate_duration + (climate_duration*climate_duration_random_ratio)))
-	minetest.after(random_end_time, function(climate_id)
-		--remove the player
-		for _player_name, _climate in pairs(climatez.players) do
-			local _climate_id = _climate.climate_id
-			if _climate_id == climate_id then
-				local _player = minetest.get_player_by_name(_player_name)
-				if _player then
-					remove_climate_player(_player)
-					--minetest.chat_send_all(_player_name.." removed from climate")
-				end
-			end
-		end
-		--disable the climate, but do not remove it
-		climatez.climates[climate_id].disabled = true
-		--remove the climate after the period time:
-		minetest.after(climatez.settings.climate_period, function(climate_id)
-			--minetest.chat_send_all("end of the climate")
-			climatez.climates = array_remove(climatez.climates, climate_id)
-		end, climate_id)
-	end, climate_id)
+
+	--remove the climate
+	minetest.after(random_end_time, remove_climate, climate_id)
+
+	minetest.chat_send_all("Created a climate, id="..tostring(climate_id))
 end
 
 local timer = 0
@@ -447,7 +489,6 @@ minetest.register_globalstep(function(dtime)
 					local chance = math.random(climatez.settings.climate_change_ratio)
 					if chance == 1 then
 						create_climate(player)
-						--minetest.chat_send_all(_player_name.." created a climate")
 					end
 				end
 			end
@@ -463,7 +504,7 @@ minetest.register_globalstep(function(dtime)
 		else
 			--Do not use "remove_climate_player" here, because the player could
 			--had abandoned the game; better remove it directly
-			array_remove(climatez.players, _player_name)
+			climatez.players = remove_table_by_key(climatez.players, _player_name)
 			--minetest.chat_send_all(_player_name.." test")
 		end
 	end
