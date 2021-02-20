@@ -212,15 +212,11 @@ end
 local function get_id()
 	local id
 	--search for a free position
-	for i= 1, #climatez.climates do
+	for i= 1, (#climatez.climates+1) do
 		if not climatez.climates[i] then
 			id = i
 			break
 		end
-	end
-	--if no site, add to the end
-	if not id then
-		id = #climatez.climates + 1
 	end
 	return id
 end
@@ -234,7 +230,6 @@ local function add_climate_player(player, _climate_id, _downfall)
 		clouds_color = nil,
 		rain_sound_handle = nil,
 	}
-	local sky_color = player:get_sky().sky_color
 	local downfall_sky_color, downfall_clouds_color
 	if _downfall == "rain" or _downfall == "storm" or _downfall == "snow" then
 		downfall_sky_color = "#808080"
@@ -243,18 +238,13 @@ local function add_climate_player(player, _climate_id, _downfall)
 		downfall_sky_color = "#DEB887"
 		downfall_clouds_color = "#DEB887"
 	end
-	if sky_color then
-		climatez.players[player_name].sky_color = sky_color
-	end
+	climatez.players[player_name].sky_color = player:get_sky().sky_color or "#8cbafa"
 	player:set_sky({
 		sky_color = {
 			day_sky = downfall_sky_color,
 		}
 	})
-	local clouds_color = player:get_clouds().color
-	if clouds_color then
-		climatez.players[player_name].clouds_color = clouds_color
-	end
+	climatez.players[player_name].clouds_color = player:get_clouds().color or "#fff0f0e5"
 	player:set_clouds({
 		color = downfall_clouds_color,
 	})
@@ -271,26 +261,14 @@ end
 
 local function remove_climate_player(player)
 	local player_name = player:get_player_name()
-	if climatez.players[player_name].sky_color then
-		player:set_sky({
-			sky_color = climatez.players[player_name].sky_color,
-		})
-	else
-		player:set_sky({
-			sky_color = {
-				day_sky = "#8cbafa",
-			}
-		})
-	end
-	if climatez.players[player_name].clouds_color then
-		player:set_clouds({
-			color = climatez.players[player_name].clouds_color,
-		})
-	else
-		player:set_clouds({
-			color = "#fff0f0e5",
-		})
-	end
+	player:set_sky({
+		sky_color = {
+			day_sky = climatez.players[player_name].sky_color,
+		}
+	})
+	player:set_clouds({
+		color = climatez.players[player_name].clouds_color,
+	})
 	local downfall = climatez.players[player_name].downfall
 	local rain_sound_handle = climatez.players[player_name].rain_sound_handle
 	if rain_sound_handle and climatez.settings.climate_rain_sound
