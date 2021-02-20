@@ -170,6 +170,7 @@ local function show_lightning(player)
 		alignment = {x=1, y=1},
 		offset = {x=0, y=0}
 	})
+	--save the lightning per player, NOT per climate
 	player:get_meta():set_int("climatez:lightning", hud_id)
 	if climatez.settings.thunder_sound then
 		local player_name = player:get_player_name()
@@ -201,7 +202,7 @@ local function add_climate_player(player, _climate_id, _downfall)
 	}
 	local sky_color = player:get_sky().sky_color
 	local downfall_sky_color, downfall_clouds_color
-	if _downfall == "rain" or _downfall == "storm" then
+	if _downfall == "rain" or _downfall == "storm" or _downfall == "snow" then
 		downfall_sky_color = "#808080"
 		downfall_clouds_color = "#C0C0C0"
 	else --"sand"
@@ -342,7 +343,7 @@ local function create_climate(player)
 	local climate_duration_random_ratio = climatez.settings.duration_random_ratio
 	local random_end_time = (math.random(climate_duration - (climate_duration*climate_duration_random_ratio),
 		climate_duration + (climate_duration*climate_duration_random_ratio)))
-	minetest.after(random_end_time, function()
+	minetest.after(random_end_time, function(climate_id)
 		--remove the player
 		for _player_name, _climate in pairs(climatez.players) do
 			local _climate_id = _climate.climate_id
@@ -354,14 +355,17 @@ local function create_climate(player)
 				end
 			end
 		end
+		if not climatez.climates[climate_id] then
+			return
+		end
 		--disable the climate, but do not remove it
 		climatez.climates[climate_id].disabled = true
 		--remove the climate after the period time:
-		minetest.after(climatez.settings.climate_period, function()
+		minetest.after(climatez.settings.climate_period, function(climate_id)
 			--minetest.chat_send_all("end of the climate")
 			climatez.climates = array_remove(climatez.climates, climate_id)
-		end)
-	end)
+		end, climate_id)
+	end, climate_id)
 end
 
 local timer = 0
@@ -461,7 +465,7 @@ minetest.register_globalstep(function(dtime)
 			apply_climate(player, _climate_id)
 		else
 			--Do not use "remove_climate_player" here, because the player could
-			--had abandoned the game
+			--had abandoned the game; better remove it directly
 			array_remove(climatez.players, _player_name)
 			--minetest.chat_send_all(_player_name.." test")
 		end
