@@ -143,7 +143,7 @@ register_downfall("snow", {
 	amount = 15,
 	exptime = 7,
 	size = 1,
-	texture= "climatez_snow.png",
+	texture= {"climatez_snow.png", "climatez_snow2.png", "climatez_snow3.png"},
 })
 
 register_downfall("sand", {
@@ -304,7 +304,7 @@ local function remove_climate(climate_id)
 		--minetest.chat_send_all("end of the climate")
 		climatez.climates = remove_table_by_key(climatez.climates, climate_id)
 		--minetest.chat_send_all("Removed climate, id="..tostring(climate_id))
-	end, climate_id)
+	end)
 end
 
 local function create_climate(player)
@@ -412,6 +412,13 @@ local function apply_climate(player, climate_id)
 	local acc = {x = 0, y = 0, z = 0}
 	local exp = downfall.exptime
 
+	local downfall_texture
+	if type(downfall.texture) == "table" then
+		downfall_texture = downfall.texture[math.random(#downfall.texture)]
+	else
+		downfall_texture = downfall.texture
+	end
+
 	minetest.add_particlespawner({
 		amount = downfall.amount, time=0.5,
 		minpos = minp, maxpos = maxp,
@@ -421,7 +428,7 @@ local function apply_climate(player, climate_id)
 		minsize = downfall.size, maxsize= downfall.size,
 		collisiondetection = true, collision_removal = true,
 		vertical = true,
-		texture = downfall.texture, playername = player:get_player_name()
+		texture = downfall_texture, playername = player:get_player_name()
 	})
 
 	--Lightning
@@ -479,10 +486,8 @@ minetest.register_globalstep(function(dtime)
 		if player and _climate then
 			local _climate_id = _climate.climate_id
 			apply_climate(player, _climate_id)
-		else
-			--Do not use "remove_climate_player" here, because the player could
-			--had abandoned the game; better remove it directly
-			climatez.players = remove_table_by_key(climatez.players, _player_name)
+		elseif player then --check if player not abandoned, before remove him
+			remove_climate_player(player)
 			--minetest.chat_send_all(_player_name.." test")
 		end
 	end
