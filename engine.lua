@@ -541,8 +541,8 @@ minetest.register_chatcommand("climatez", {
 			end
 			i = i + 1
 		end
-		if not(subcommand == "stop") then
-			return true, "Error: The subcomands for the climatez command are 'stop | stopall'"
+		if not(subcommand == "stop") and not(subcommand == "start") then
+			return true, "Error: The subcomands for the climatez command are 'stop | start'"
 		end
 		--if subcommand then
 			--minetest.chat_send_all("subcommand =".. subcommand)
@@ -550,27 +550,36 @@ minetest.register_chatcommand("climatez", {
 		--if player_name then
 			--minetest.chat_send_all("player name =".. player_name)
 		--end
-
-		if player_name then --remove the climate only for that player
-			local player = minetest.get_player_by_name(player_name)
-			if player then
-				if climatez.players[player_name] then
-					remove_climate_player_effects(player_name)
-					climatez.players[player_name].disabled = true
+		if subcommand == "stop" then
+			if player_name then --remove the climate only for that player
+				local player = minetest.get_player_by_name(player_name)
+				if player then
+					if climatez.players[player_name] then
+						remove_climate_player_effects(player_name)
+						climatez.players[player_name].disabled = true
+					else
+						minetest.chat_send_player(player_name, player_name .. " ".. "is not inside any climate.")
+					end
 				else
-					minetest.chat_send_player(player_name, player_name .. " ".. "is not inside any climate.")
+					minetest.chat_send_player(name, "The player "..player_name.." is not online.")
 				end
 			else
-				minetest.chat_send_player(name, "The player "..player_name.." is not online.")
+				local player = minetest.get_player_by_name(name)
+				if player then
+					if climatez.players[name] then
+						climatez.climates[climatez.players[name].climate_id]:stop()
+					else
+						minetest.chat_send_player(name, "You are not inside any climate.")
+					end
+				end
 			end
-		else
+		elseif subcommand == "start" then
 			local player = minetest.get_player_by_name(name)
 			if player then
 				if climatez.players[name] then
 					climatez.climates[climatez.players[name].climate_id]:stop()
-				else
-					minetest.chat_send_player(name, "You are not inside any climate.")
 				end
+				create_climate(player)
 			end
 		end
     end,
