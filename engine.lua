@@ -192,7 +192,6 @@ local function show_lightning(player_name)
 	--save the lightning per player, NOT per climate
 	player:get_meta():set_int("climatez:lightning", hud_id)
 	if climatez.settings.thunder_sound then
-		local player_name = player:get_player_name()
 		minetest.sound_play("climatez_thunder", {
 			to_player = player_name,
 			loop = false,
