@@ -46,8 +46,8 @@ function remove_table_by_key(tab, key)
 
 	local new_tab = {}
 
-	for i = 1, #keys do
-		new_tab[keys[i]] = values[i]
+	for j = 1, #keys do
+		new_tab[keys[j]] = values[j]
 	end
 
 	return new_tab
@@ -179,7 +179,8 @@ end
 
 --LIGHTING
 
-local function show_lightning(player)
+local function show_lightning(player_name)
+	local player = minetest.get_player_by_name(player_name)
 	local hud_id = player:hud_add({
 		hud_elem_type = "image",
 		text = "climatez_lightning.png",
@@ -200,7 +201,8 @@ local function show_lightning(player)
 	end
 end
 
-local function remove_lightning(player)
+local function remove_lightning(player_name)
+	local player = minetest.get_player_by_name(player_name)
 	local meta = player:get_meta()
 	local hud_id = meta:get_int("climatez:lightning")
 	player:hud_remove(hud_id)
@@ -229,6 +231,7 @@ local function add_climate_player(player, _climate_id, _downfall)
 		sky_color = nil,
 		clouds_color = nil,
 		rain_sound_handle = nil,
+		disabled = false,
 	}
 	local downfall_sky_color, downfall_clouds_color
 	if _downfall == "rain" or _downfall == "storm" or _downfall == "snow" then
@@ -257,10 +260,12 @@ local function add_climate_player(player, _climate_id, _downfall)
 		})
 		climatez.players[player_name].rain_sound_handle = rain_sound_handle
 	end
+
+	--minetest.chat_send_all("Player added to climate")
 end
 
-local function remove_climate_player(player)
-	local player_name = player:get_player_name()
+local function remove_climate_player_effects(player_name)
+	local player = minetest.get_player_by_name(player_name)
 	player:set_sky({
 		sky_color = {
 			day_sky = climatez.players[player_name].sky_color,
@@ -278,25 +283,36 @@ local function remove_climate_player(player)
 
 	local lightning = player:get_meta():get_int("climatez:lightning")
 	if downfall == "storm" and lightning > 0 then
-		remove_lightning(player)
+		remove_lightning(player_name)
 	end
 
+end
+
+local function remove_climate_player(player_name)
+	remove_climate_player_effects(player_name)
 	--remove the player-->
 	climatez.players = remove_table_by_key(climatez.players, player_name)
 end
 
-local function remove_climate(climate_id)
-	--remove the players
+local function remove_climate_players(climate_id)
 	for _player_name, _climate in pairs(climatez.players) do
 		local _climate_id = _climate.climate_id
 		if _climate_id == climate_id then
 			local _player = minetest.get_player_by_name(_player_name)
 			if _player then
-				remove_climate_player(_player)
+				remove_climate_player(_player_name)
 				--minetest.chat_send_all(_player_name.." removed from climate")
 			end
 		end
 	end
+end
+
+local function remove_climate(climate_id)
+	if not(climatez.climates[climate_id]) then
+		return
+	end
+	--remove the players
+	remove_climate_players(climate_id)
 	--disable the climate, but do not remove it
 	climatez.climates[climate_id].disabled = true
 	--remove the climate after the period time:
@@ -387,15 +403,17 @@ end
 
 local timer = 0
 
-local function apply_climate(player, climate_id)
+local function apply_climate(player_name, climate_id)
+
+	local player = minetest.get_player_by_name(player_name)
 
 	local player_pos = player:get_pos()
 	local climate = climatez.climates[climate_id]
 	if not climate then
-		remove_climate_player(player)
+		remove_climate_player(player_name)
 		return
 	end
-	local player_name = player:get_player_name()
+
 	local player_downfall = climatez.players[player_name].downfall
 	local downfall = climatez.registered_downfalls[player_downfall]
 	local wind = climate.wind
@@ -428,7 +446,7 @@ local function apply_climate(player, climate_id)
 		minsize = downfall.size, maxsize= downfall.size,
 		collisiondetection = true, collision_removal = true,
 		vertical = true,
-		texture = downfall_texture, playername = player:get_player_name()
+		texture = downfall_texture, playername = player_name
 	})
 
 	--Lightning
@@ -440,12 +458,12 @@ local function apply_climate(player, climate_id)
 			if lightning <= 0  then
 				local chance = math.random(climatez.settings.lightning_chance)
 				if chance == 1 then
-					show_lightning(player, climate_id)
+					show_lightning(player_name)
 				end
 			end
 		end
 		if timer >= 0.1 and lightning > 0 then
-			remove_lightning(player)
+			remove_lightning(player_name)
 		end
 	end
 end
@@ -463,12 +481,12 @@ minetest.register_globalstep(function(dtime)
 			if climate_id and _climate then --if already in a climate, check if still inside it
 				local _climate_id = _climate.climate_id
 				if not climate_id == _climate_id then
-					remove_climate_player(player)
+					remove_climate_player(_player_name)
 				end
-			elseif climate_id and not(_climate) and not climate_disabled then --another player enter into the climate
+			elseif climate_id and not(_climate) and not(climate_disabled) then --another player enter into the climate
 				local downfall = climatez.climates[climate_id].downfall
 				add_climate_player(player, climate_id, downfall)
-				--minetest.chat_send_all(_player_name.." entered into the climate")
+				minetest.chat_send_all(_player_name.." entered into the climate")
 			else --chance to create a climate
 				if not climate_disabled then --if not in a disabled climate
 					local chance = math.random(climatez.settings.climate_change_ratio)
@@ -484,11 +502,61 @@ minetest.register_globalstep(function(dtime)
 	for _player_name, _climate in pairs(climatez.players) do
 		local player = minetest.get_player_by_name(_player_name)
 		if player and _climate then
-			local _climate_id = _climate.climate_id
-			apply_climate(player, _climate_id)
+			if not(_climate.disabled) then
+				local _climate_id = _climate.climate_id
+				apply_climate(_player_name, _climate_id)
+			end
 		elseif player then --check if player not abandoned, before remove him
-			remove_climate_player(player)
+			remove_climate_player(_player_name)
 			--minetest.chat_send_all(_player_name.." test")
 		end
 	end
 end)
+
+--COMMANDS
+
+minetest.register_chatcommand("climatez", {
+	privs = {
+        server = true,
+    },
+	description = "Climate Functions",
+    func = function(name, param)
+		local subcommand, player_name
+		local i = 0
+		for word in string.gmatch(param, "([%a%d_-]+)") do
+			if i == 0 then
+				subcommand = word
+			else
+				player_name = word
+			end
+			i = i + 1
+		end
+		if not(subcommand == "stop") then
+			return true, "Error: The subcomands for the climatez command are 'stop | stopall'"
+		end
+		--if subcommand then
+			--minetest.chat_send_all("subcommand =".. subcommand)
+		--end
+		--if player_name then
+			--minetest.chat_send_all("player name =".. player_name)
+		--end
+
+		if not player_name then --remove the climate only for that player
+			player_name = name
+		end
+
+		local player = minetest.get_player_by_name(player_name)
+
+		if player then
+			if climatez.players[player_name] then
+				remove_climate_player_effects(player_name)
+				climatez.players[player_name].disabled = true
+			else
+				minetest.chat_send_player(player_name, player_name .. " ".. "is not inside any climate.")
+			end
+		else
+			minetest.chat_send_player(name, "The player "..name.." is not online.")
+		end
+
+    end,
+})
