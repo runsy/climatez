@@ -20,6 +20,7 @@ climatez.settings.thunder_sound = settings:get_bool("thunder_sound")
 climatez.settings.storm_chance = tonumber(settings:get("storm_chance"))
 climatez.settings.lightning = settings:get_bool("lightning")
 climatez.settings.lightning_chance = tonumber(settings:get("lightning_chance"))
+climatez.settings.dust_effect = settings:get_bool("dust_effect")
 
 local climate_max_height = tonumber(minetest.settings:get('cloud_height', true)) or 120
 local check_light = minetest.is_yes(minetest.settings:get_bool('light_roofcheck', true))
@@ -231,6 +232,7 @@ local function add_climate_player(player, _climate_id, _downfall)
 		clouds_color = nil,
 		rain_sound_handle = nil,
 		disabled = false,
+		hud_id = nil,
 	}
 	local downfall_sky_color, downfall_clouds_color
 	if _downfall == "rain" or _downfall == "storm" or _downfall == "snow" then
@@ -250,6 +252,17 @@ local function add_climate_player(player, _climate_id, _downfall)
 	player:set_clouds({
 		color = downfall_clouds_color,
 	})
+
+	if _downfall == "sand" and climatez.settings.dust_effect then
+		climatez.players[player_name].hud_id = player:hud_add({
+			hud_elem_type = "image",
+			text = "climatez_dust.png",
+			position = {x=0, y=0},
+			scale = {x=-100, y=-100},
+			alignment = {x=1, y=1},
+			offset = {x=0, y=0}
+		})
+	end
 
 	if climatez.settings.climate_rain_sound and (_downfall == "rain" or _downfall == "storm") then
 		local rain_sound_handle = minetest.sound_play("climatez_rain", {
@@ -273,11 +286,17 @@ local function remove_climate_player_effects(player_name)
 	player:set_clouds({
 		color = climatez.players[player_name].clouds_color,
 	})
+
 	local downfall = climatez.players[player_name].downfall
+
 	local rain_sound_handle = climatez.players[player_name].rain_sound_handle
 	if rain_sound_handle and climatez.settings.climate_rain_sound
 		and (downfall == "rain" or downfall == "storm") then
 			minetest.sound_stop(rain_sound_handle)
+	end
+
+	if downfall == "sand" and climatez.settings.dust_effect then
+		player:hud_remove(climatez.players[player_name].hud_id)
 	end
 
 	local lightning = player:get_meta():get_int("climatez:lightning")
@@ -395,6 +414,9 @@ local function create_climate(player)
 		end,
 
 		stop = function(self)
+			--remove the players
+			remove_climate_players(self.id)
+			--remove the climate
 			climatez.climates = remove_table_by_key(climatez.climates, self.id)
 		end,
 	}
