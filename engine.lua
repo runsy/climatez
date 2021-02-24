@@ -54,7 +54,7 @@ function remove_table_by_key(tab, key)
 end
 
 local function player_inside_climate(player_pos)
-	--This function returns the climate_id if inside and true/false if the climate is enabled dor not
+	--This function returns the climate_id if inside and true/false if the climate is enabled or not
 	--check altitude
 	if (player_pos.y < climatez.settings.climate_min_height) or (player_pos.y > climate_max_height) then
 		return false, nil
@@ -486,10 +486,11 @@ minetest.register_globalstep(function(dtime)
 			local _player_name = player:get_player_name()
 			local player_pos = player:get_pos()
 			local climate_id, climate_disabled = player_inside_climate(player_pos)
+			--minetest.chat_send_all(tostring(climate_id))
 			local _climate = climatez.players[_player_name]
-			if climate_id and _climate then --if already in a climate, check if still inside it
+			if _climate then --if already in a climate, check if still inside it
 				local _climate_id = _climate.climate_id
-				if not climate_id == _climate_id then
+				if not(climate_id == _climate_id) then
 					remove_climate_player(_player_name)
 				end
 			elseif climate_id and not(_climate) and not(climate_disabled) then --another player enter into the climate
