@@ -25,6 +25,8 @@ climatez.settings.dust_effect = settings:get_bool("dust_effect")
 local climate_max_height = tonumber(minetest.settings:get('cloud_height', true)) or 120
 local check_light = minetest.is_yes(minetest.settings:get_bool('light_roofcheck', true))
 
+local timer = 0 -- A timer to create climates each x seconds an for lightning too.
+
 --Helper Functions
 
 function remove_table_by_key(tab, key)
@@ -168,7 +170,11 @@ local function create_wind()
 	return wind
 end
 
-function get_player_wind(player)
+function get_player_wind(player_name)
+	local player = minetest.get_player_by_name(player_name)
+	if not player then
+		return
+	end
 	local player_pos = player:get_pos()
 	local climate_id = player_inside_climate(player_pos)
 	if climate_id then
@@ -182,6 +188,9 @@ end
 
 local function show_lightning(player_name)
 	local player = minetest.get_player_by_name(player_name)
+	if not player then
+		return
+	end
 	local hud_id = player:hud_add({
 		hud_elem_type = "image",
 		text = "climatez_lightning.png",
@@ -203,6 +212,9 @@ end
 
 local function remove_lightning(player_name)
 	local player = minetest.get_player_by_name(player_name)
+	if not player then
+		return
+	end
 	local meta = player:get_meta()
 	local hud_id = meta:get_int("climatez:lightning")
 	player:hud_remove(hud_id)
@@ -223,11 +235,10 @@ local function get_id()
 	return id
 end
 
-local function add_climate_player(player, _climate_id, _downfall)
+local function add_climate_player(player, climate_id)
 	local player_name = player:get_player_name()
 	climatez.players[player_name] = {
-		climate_id = _climate_id,
-		downfall = _downfall,
+		climate_id = climate_id,
 		sky_color = nil,
 		clouds_color = nil,
 		rain_sound_handle = nil,
@@ -235,7 +246,10 @@ local function add_climate_player(player, _climate_id, _downfall)
 		hud_id = nil,
 	}
 	local downfall_sky_color, downfall_clouds_color
-	if _downfall == "rain" or _downfall == "storm" or _downfall == "snow" then
+
+	local downfall_type = climatez.climates[climate_id].downfall_type
+
+	if downfall_type == "rain" or downfall_type == "storm" or downfall_type == "snow" then
 		downfall_sky_color = "#808080"
 		downfall_clouds_color = "#C0C0C0"
 	else --"sand"
@@ -253,7 +267,7 @@ local function add_climate_player(player, _climate_id, _downfall)
 		color = downfall_clouds_color,
 	})
 
-	if _downfall == "sand" and climatez.settings.dust_effect then
+	if downfall_type == "sand" and climatez.settings.dust_effect then
 		climatez.players[player_name].hud_id = player:hud_add({
 			hud_elem_type = "image",
 			text = "climatez_dust.png",
@@ -264,7 +278,7 @@ local function add_climate_player(player, _climate_id, _downfall)
 		})
 	end
 
-	if climatez.settings.climate_rain_sound and (_downfall == "rain" or _downfall == "storm") then
+	if climatez.settings.climate_rain_sound and (downfall_type == "rain" or downfall_type== "storm") then
 		local rain_sound_handle = minetest.sound_play("climatez_rain", {
 			to_player = player_name,
 			loop = true,
@@ -278,6 +292,9 @@ end
 
 local function remove_climate_player_effects(player_name)
 	local player = minetest.get_player_by_name(player_name)
+	if not player then
+		return
+	end
 	player:set_sky({
 		sky_color = {
 			day_sky = climatez.players[player_name].sky_color,
@@ -287,20 +304,21 @@ local function remove_climate_player_effects(player_name)
 		color = climatez.players[player_name].clouds_color,
 	})
 
-	local downfall = climatez.players[player_name].downfall
+	local climate_id = climatez.players[player_name].climate_id
+	local downfall_type = climatez.climates[climate_id].downfall_type
 
 	local rain_sound_handle = climatez.players[player_name].rain_sound_handle
 	if rain_sound_handle and climatez.settings.climate_rain_sound
-		and (downfall == "rain" or downfall == "storm") then
+		and (downfall_type == "rain" or downfall_type == "storm") then
 			minetest.sound_stop(rain_sound_handle)
 	end
 
-	if downfall == "sand" and climatez.settings.dust_effect then
+	if downfall_type == "sand" and climatez.settings.dust_effect then
 		player:hud_remove(climatez.players[player_name].hud_id)
 	end
 
 	local lightning = player:get_meta():get_int("climatez:lightning")
-	if downfall == "storm" and lightning > 0 then
+	if downfall_type == "storm" and lightning > 0 then
 		remove_lightning(player_name)
 	end
 
@@ -325,37 +343,47 @@ local function remove_climate_players(climate_id)
 	end
 end
 
-local function create_climate(player)
-	--get some data
+local function create_climate(player_name)
+
+	local player = minetest.get_player_by_name(player_name)
+
+	if not player then
+		return
+	end
+
 	local player_pos = player:get_pos()
+
+	--get some data
 	local biome_data = minetest.get_biome_data(player_pos)
 	local biome_heat = biome_data.heat
 	local biome_humidity = biome_data.humidity
 
-	local downfall
+	local downfall_type
 
-	if biome_heat >= 20 and biome_humidity >= 50 then
+	if biome_heat > 28 and biome_humidity >= 35 then
 		local chance = math.random(climatez.settings.storm_chance)
 		if chance == 1 then
-			downfall = "storm"
+			downfall_type = "storm"
 		else
-			downfall = "rain"
+			downfall_type = "rain"
 		end
 	elseif biome_heat >= 50 and biome_humidity <= 20  then
-		downfall = "sand"
-	elseif biome_heat < 20 then
-		downfall = "snow"
+		downfall_type = "sand"
+	elseif biome_heat <= 28 then
+		downfall_type = "snow"
 	end
 
-	if not downfall then
-		return
+	if not downfall_type then
+		downfall_type = "rain"
 	end
+
+	--minetest.chat_send_all(tostring(biome_heat).. ", "..downfall_type)
 
 	--create wind
 	local wind = create_wind()
 
 	--strong wind if a storm
-	if downfall == "storm" then
+	if downfall_type == "storm" then
 		wind = {
 			x = wind.x * 2,
 			y = wind.y,
@@ -364,7 +392,7 @@ local function create_climate(player)
 	end
 
 	--very strong wind if a sandstorm
-	if downfall == "sand" then
+	if downfall_type == "sand" then
 		if wind.x < 1 then
 			wind.x = 1
 			wind.y = 1
@@ -388,7 +416,7 @@ local function create_climate(player)
 		id = climate_id,
 		disabled = false,
 		center = player_pos,
-		downfall = downfall,
+		downfall_type = downfall_type,
 		wind = wind,
 		timer = 0,
 		end_time = (math.random(climate_duration - (climate_duration*climate_duration_random_ratio),
@@ -419,79 +447,70 @@ local function create_climate(player)
 			--remove the climate
 			climatez.climates = remove_table_by_key(climatez.climates, self.id)
 		end,
+
+		apply = function(self, _player_name)
+
+			local _player = minetest.get_player_by_name(_player_name)
+
+			local _player_pos = _player:get_pos()
+
+			local downfall = climatez.registered_downfalls[self.downfall_type]
+			local wind_pos = vector.multiply(self.wind, -1)
+			local minp = vector.add(vector.add(_player_pos, downfall.min_pos), wind_pos)
+			local maxp = vector.add(vector.add(_player_pos, downfall.max_pos), wind_pos)
+
+			--Check if in player in interiors or not
+			if check_light and not has_light(minp, maxp) then
+				return
+			end
+
+			local vel = {x = self.wind.x, y = - downfall.falling_speed, z = self.wind.z}
+			local acc = {x = 0, y = 0, z = 0}
+			local exp = downfall.exptime
+
+			local downfall_texture
+			if type(downfall.texture) == "table" then
+				downfall_texture = downfall.texture[math.random(#downfall.texture)]
+			else
+				downfall_texture = downfall.texture
+			end
+
+		minetest.add_particlespawner({
+			amount = downfall.amount, time=0.5,
+			minpos = minp, maxpos = maxp,
+			minvel = vel, maxvel = vel,
+			minacc = acc, maxacc = acc,
+			minexptime = exp, maxexptime = exp,
+			minsize = downfall.size, maxsize= downfall.size,
+			collisiondetection = true, collision_removal = true,
+			vertical = true,
+			texture = downfall_texture, playername = _player_name
+		})
+
+		--Lightning
+		if self.downfall_type == "storm" and climatez.settings.lightning then
+			local lightning = _player:get_meta():get_int("climatez:lightning")
+			--minetest.chat_send_all(tostring(lightning))
+			--minetest.chat_send_all(tonumber(timer))
+			if timer >= 0.5 then
+				if lightning <= 0  then
+					local chance = math.random(climatez.settings.lightning_chance)
+					if chance == 1 then
+						show_lightning(_player_name)
+					end
+				end
+			end
+			if timer >= 0.1 and lightning > 0 then
+				remove_lightning(_player_name)
+			end
+		end
+	end
 	}
 
 	--save the player
-	add_climate_player(player, climate_id, downfall)
+	add_climate_player(player, climate_id)
 
 	--minetest.chat_send_all("Created a climate, id="..tostring(climate_id))
-end
-
-local timer = 0
-
-local function apply_climate(player_name, climate_id)
-
-	local player = minetest.get_player_by_name(player_name)
-
-	local player_pos = player:get_pos()
-	local climate = climatez.climates[climate_id]
-	if not climate then
-		remove_climate_player(player_name)
-		return
-	end
-
-	local player_downfall = climatez.players[player_name].downfall
-	local downfall = climatez.registered_downfalls[player_downfall]
-	local wind = climate.wind
-	local wind_pos = vector.multiply(wind, -1)
-	local minp = vector.add(vector.add(player_pos, downfall.min_pos), wind_pos)
-	local maxp = vector.add(vector.add(player_pos, downfall.max_pos), wind_pos)
-
-	--Check if in player in interiors or not
-	if check_light and not has_light(minp, maxp) then
-		return
-	end
-
-	local vel = {x = wind.x, y = - downfall.falling_speed, z = wind.z}
-	local acc = {x = 0, y = 0, z = 0}
-	local exp = downfall.exptime
-
-	local downfall_texture
-	if type(downfall.texture) == "table" then
-		downfall_texture = downfall.texture[math.random(#downfall.texture)]
-	else
-		downfall_texture = downfall.texture
-	end
-
-	minetest.add_particlespawner({
-		amount = downfall.amount, time=0.5,
-		minpos = minp, maxpos = maxp,
-		minvel = vel, maxvel = vel,
-		minacc = acc, maxacc = acc,
-		minexptime = exp, maxexptime = exp,
-		minsize = downfall.size, maxsize= downfall.size,
-		collisiondetection = true, collision_removal = true,
-		vertical = true,
-		texture = downfall_texture, playername = player_name
-	})
-
-	--Lightning
-	if player_downfall == "storm" and climatez.settings.lightning then
-		local lightning = player:get_meta():get_int("climatez:lightning")
-		--minetest.chat_send_all(tostring(lightning))
-		--minetest.chat_send_all(tonumber(timer))
-		if timer >= 0.5 then
-			if lightning <= 0  then
-				local chance = math.random(climatez.settings.lightning_chance)
-				if chance == 1 then
-					show_lightning(player_name)
-				end
-			end
-		end
-		if timer >= 0.1 and lightning > 0 then
-			remove_lightning(player_name)
-		end
-	end
 end
 
 --CLIMATE CORE: GLOBALSTEP
@@ -516,14 +535,13 @@ minetest.register_globalstep(function(dtime)
 					remove_climate_player(_player_name)
 				end
 			elseif climate_id and not(_climate) and not(climate_disabled) then --another player enter into the climate
-				local downfall = climatez.climates[climate_id].downfall
-				add_climate_player(player, climate_id, downfall)
+				add_climate_player(player, climate_id)
 				--minetest.chat_send_all(_player_name.." entered into the climate")
 			else --chance to create a climate
 				if not climate_disabled then --if not in a disabled climate
 					local chance = math.random(climatez.settings.climate_change_ratio)
 					if chance == 1 then
-						create_climate(player)
+						create_climate(_player_name)
 					end
 				end
 			end
@@ -536,7 +554,12 @@ minetest.register_globalstep(function(dtime)
 		if player and _climate then
 			if not(_climate.disabled) then
 				local _climate_id = _climate.climate_id
-				apply_climate(_player_name, _climate_id)
+				local climate = climatez.climates[_climate_id]
+				if not climate then
+					remove_climate_player(_player_name)
+					return
+				end
+				climate:apply(_player_name)
 			end
 		elseif player then --check if player not abandoned, before remove him
 			remove_climate_player(_player_name)
@@ -601,7 +624,7 @@ minetest.register_chatcommand("climatez", {
 				if climatez.players[name] then
 					climatez.climates[climatez.players[name].climate_id]:stop()
 				end
-				create_climate(player)
+				create_climate(name)
 			end
 		end
     end,
