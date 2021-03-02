@@ -60,15 +60,17 @@ local function player_inside_climate(player_pos)
 	--This function returns the climate_id if inside and true/false if the climate is enabled or not
 	--check altitude
 	if (player_pos.y < climatez.settings.climate_min_height) or (player_pos.y > climate_max_height) then
-		return false, nil
+		return false, nil, nil
 	end
 	--check if on water
+	player_pos.y = player_pos.y + 1
 	local node_name = minetest.get_node(player_pos).name
 	if minetest.registered_nodes[node_name] and (
 		minetest.registered_nodes[node_name]["liquidtype"] == "source" or
 		minetest.registered_nodes[node_name]["liquidtype"] == "flowing") then
-			return false, false
+			return false, nil, true
 	end
+	player_pos.y = player_pos.y - 1
 	--If sphere's centre coordinates is (cx,cy,cz) and its radius is r,
 	--then point (x,y,z) is in the sphere if (x−cx)2+(y−cy)2+(z−cz)2<r2.
 	for i, _climate in ipairs(climatez.climates) do
@@ -78,13 +80,13 @@ local function player_inside_climate(player_pos)
 			(player_pos.z - climate_center.z)^2
 			) then
 				if climatez.climates[i].disabled then
-					return i, true
+					return i, true, false
 				else
-					return i, false
+					return i, false, false
 				end
 		end
 	end
-	return false, false
+	return false, false, false
 end
 
 local function has_light(minp, maxp)
@@ -537,10 +539,12 @@ minetest.register_globalstep(function(dtime)
 		for _, player in ipairs(minetest.get_connected_players()) do
 			local player_name = player:get_player_name()
 			local player_pos = player:get_pos()
-			local climate_id, climate_disabled = player_inside_climate(player_pos)
+			local climate_id, climate_disabled, on_water = player_inside_climate(player_pos)
 			--minetest.chat_send_all(player_name .. " in climate "..tostring(climate_id))
 			local _climate = climatez.players[player_name]
-			if climate_id and not(climate_disabled) and _climate then
+			if _climate and on_water then
+				remove_climate_player(player_name)
+			elseif climate_id and not(climate_disabled) and _climate then
 				local _climate_id = _climate.climate_id --check if player still inside the climate
 				if not(climate_id == _climate_id) then
 					remove_climate_player(player_name)
