@@ -16,3 +16,12 @@ Author: elmoustachio
 https://freesound.org/people/elmoustachio/sounds/476735/
 License: This work is licensed under the Creative Commons 0 License.
 
+# Mentions
+
+- I take some code from the Weather Mod by theFox6:
+https://forum.minetest.net/viewtopic.php?t=5245
+https://github.com/theFox6/minetest_mod_weather
+
+- I take some ideas from the mod:
+Regional Weather Bundle by TestificateMods
+https://forum.minetest.net/viewtopic.php?t=24569
