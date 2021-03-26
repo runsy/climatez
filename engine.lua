@@ -572,7 +572,9 @@ minetest.register_globalstep(function(dtime)
 		local player = minetest.get_player_by_name(_player_name)
 		if player and _climate then
 			if not(_climate.disabled) then
-				climatez.climates[_climate.climate_id]:apply(_player_name)
+				if climatez.climates[_climate.climate_id] then
+					climatez.climates[_climate.climate_id]:apply(_player_name)
+				end
 			end
 		end
 	end
