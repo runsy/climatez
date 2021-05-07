@@ -234,6 +234,7 @@ local function add_climate_player(player_name, climate_id, downfall_type)
 		rain_sound_handle = nil,
 		disabled = false,
 		hud_id = nil,
+		downfall_type = downfall_type,
 	}
 	local downfall_sky_color, downfall_clouds_color
 
@@ -293,7 +294,7 @@ local function remove_climate_player_effects(player_name)
 	})
 
 	local climate_id = climatez.players[player_name].climate_id
-	local downfall_type = climatez.climates[climate_id].downfall_type
+	local downfall_type = climatez.players[player_name].downfall_type
 
 	local rain_sound_handle = climatez.players[player_name].rain_sound_handle
 	if rain_sound_handle and climatez.settings.climate_rain_sound
